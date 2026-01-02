@@ -1,4 +1,6 @@
-#include<iostream>
+#include <iostream>
+#include <memory>
+#include <vector>
 //Lexer
 //returns 0-255 for unknown character, else
 //anyone below
@@ -54,7 +56,7 @@ static int gettok(){
         if(LastChar != EOF) return gettok();
     }
 
-    //final checking
+    //final end of file checking
     if(LastChar == EOF) return tok_eof;
 
     //if curr char is not anything in language or we defined, then
@@ -63,3 +65,48 @@ static int gettok(){
     LastChar = getchar();
     return currChar;
 }
+
+//Base class for every expression class (num,var,func)
+class ExprAst{
+    public:
+        virtual ~ExprAst() = default;
+};
+
+class NumberExprAst : public ExprAst{
+    double val;
+    public:
+        NumberExprAst(double val) : val(val){}
+};
+
+//parameter is a refernce, to avoid extra copy of passing string
+class VariableExprAst : public ExprAst{
+    std::string Name;
+    public:
+        VariableExprAst(const std::string &Name) : Name(Name){}
+};
+
+//To store expressions, Op for operators, Lhs,Rhs for oprands and sub expressions
+class BinaryExprAst : public ExprAst{
+    char Op;
+    std::unique_ptr<ExprAst>Lhs,Rhs;
+    public:
+        BinaryExprAst(char Op,std::unique_ptr<ExprAst>Lhs,std::unique_ptr<ExprAst>Rhs) : Op(Op),Lhs(std::move(Lhs)),Rhs(std::move(Rhs)) {}
+};
+
+//vector store points of args of function
+class CallExprAst : public ExprAst{
+    std::string Calle;
+    std::vector<std::unique_ptr<ExprAst>> Args;
+    public:
+        CallExprAst(const std::string &Calle,std::vector<std::unique_ptr<ExprAst>> Args) : Calle(Calle),Args(std::move(Args)) {}
+};
+
+//To store function prototype
+//getter function return reference and const, caller cannot change string and function itself cannot change name
+class PrototypeExprAst : public ExprAst{
+    std::string Name;
+    std::vector<std::unique_ptr<ExprAst>> Args;
+    public:
+        PrototypeExprAst(const std::string &Name,std::vector<std::unique_ptr<ExprAst>> Args) : Name(Name),Args(std::move(Args)){}
+    const std::string &getName() const {return Name;}
+};
