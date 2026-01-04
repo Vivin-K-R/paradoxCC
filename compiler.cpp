@@ -1,6 +1,10 @@
-#include <iostream>
+#include <cstdio>
+#include <cctype>
+#include <utility>
 #include <memory>
+#include <string>
 #include <vector>
+#include <map>
 //Lexer
 //returns 0-255 for unknown character, else
 //anyone below
@@ -134,6 +138,9 @@ std::unique_ptr<PrototypeExprAst> LogErrorP(const char* S){
     LogError(S);
     return nullptr;
 }
+static std::unique_ptr<ExprAst> ParseExpression();
+static std::unique_ptr<ExprAst>ParseBinOpRhs(int ExprPrec, std::unique_ptr<ExprAst> Lhs);
+
 
 //Parser
 //Number exprssion parsing
@@ -143,11 +150,12 @@ static std::unique_ptr<ExprAst> ParseNumberExpr(){
     return std::move(Result);
 }
 
+
 //Paranthesis
 //ParseParanthExpr = ( Expr )
 static std::unique_ptr<ExprAst> ParseParanthExpr(){
     getNextToken();//take (
-    auto v = ParseExpression();  // reads expression inside ()
+    auto V = ParseExpression();  // reads expression inside ()
     if(!V) return nullptr;
     if(CurTok != ')') return LogError("expected ')'");
     getNextToken();//take )
@@ -193,6 +201,132 @@ static std::unique_ptr<ExprAst>ParseDriver(){
     default:
         return LogError("unkown token, expecting an expression.");
     }
+}
+
+static std::map<char, int>PrecendenceTable;
+static int getTokPrecedence(){
+    if(!isascii(CurTok)) return -1; //this allows every single ASCII chars
+    int TokPrecedence = PrecendenceTable[CurTok];
+    if(TokPrecedence <= 0) return -1; // checks only for allowed binary operators
+    return TokPrecedence;
+}
+
+static std::unique_ptr<ExprAst> ParseExpression(){
+    auto Lhs = ParseDriver();
+    if(!Lhs) return nullptr;
+    return ParseBinOpRhs(0,std::move(Lhs));
+}
+
+//binary operations
+// ('op' primaryExpr)*
+static std::unique_ptr<ExprAst> ParseBinOpRhs(int ExprPrec,std::unique_ptr<ExprAst>Lhs){
+    while(true){
+        int TokPrec = getTokPrecedence();
+        if(TokPrec < ExprPrec) return Lhs;
+        int BinOp = CurTok;
+        getNextToken();
+        auto Rhs = ParseDriver();
+        if(!Rhs) return nullptr;
+        int NextPrec = getTokPrecedence();
+        if(TokPrec < NextPrec){
+            //+1 to avoid the seen lower precedence op while grouping for higher precendence op
+            Rhs = ParseBinOpRhs(TokPrec+1,std::move(Rhs));
+            if(!Rhs) return nullptr;
+        }
+        Lhs = std::make_unique<BinaryExprAst>(BinOp,std::move(Lhs),std::move(Rhs));
+    }
+}
+
+static std::unique_ptr<PrototypeExprAst> ParsePrototype(){
+    if(CurTok != tok_identifier)
+        return LogErrorP("Missing function name.");
+    std::string FnName = identifierStr;
+    getNextToken();
+    if(CurTok != '(')
+        return LogErrorP("Exepcted '(' in prototype");
+    std::vector<std::string>Args;
+    while(getNextToken() == tok_identifier)
+        Args.push_back(identifierStr);
+    if(CurTok != ')')
+        return LogErrorP("Exepcted ')' in prototype");
+    getNextToken();
+    return std::make_unique<PrototypeExprAst>(FnName,std::move(Args));
+}
+
+static std::unique_ptr<FunctionExprAst>ParseDefinition(){
+    getNextToken(); // moving after def
+    auto Proto = ParsePrototype();
+    if(!Proto) return nullptr;
+    if(auto E = ParseExpression())
+        return std::make_unique<FunctionExprAst>(std::move(Proto), std::move(E));
+    return nullptr;
+}
+
+static std::unique_ptr<PrototypeExprAst>ParseExtern(){
+    getNextToken();//move after extern
+    return ParsePrototype();
+}
+
+//for expressions like 1+2+3, we'll consider it as anonymous functions
+// through which binaryOp is called, and expression parsed
+static std::unique_ptr<FunctionExprAst>ParseTopLvlExpr(){
+    if(auto E = ParseExpression()){
+        auto Proto = std::make_unique<PrototypeExprAst>("",std::vector<std::string>());
+        return std::make_unique<FunctionExprAst>(std::move(Proto),std::move(E));
+    }
+    return nullptr;
+}
+
+static void HandleDefinition(){
+    if(ParseDefinition())
+        fprintf(stderr, "Parsed a function definition.\n");
+    else
+        getNextToken();
+}
+
+static void HandleExtern(){
+    if(ParseExtern())
+        fprintf(stderr, "Parsed a extern.\n");
+    else
+        getNextToken();
+}
+
+static void HandleTopLevelExpression() {
+    if (ParseTopLvlExpr()) 
+        fprintf(stderr, "Parsed a top-level expr\n");
+    else 
+        getNextToken();
+}
+
+static void MainLoop(){
+    while(true){
+        fprintf(stderr,"compile> ");
+        switch(CurTok){
+            case tok_eof:
+                return;
+            case tok_def:
+                HandleDefinition();
+                break;
+            case tok_extern:
+                HandleExtern();
+                break;
+            case ';':
+                getNextToken();
+                break;
+            default :
+                HandleTopLevelExpression();
+                break;
+        }
+    }
+}
+int main(){
+    PrecendenceTable['<']=10;
+    PrecendenceTable['+']=20;
+    PrecendenceTable['-']=20;
+    PrecendenceTable['*']=40;
+    getNextToken();
+    MainLoop();
+    return 0;
 }
 
 
