@@ -1,0 +1,74 @@
+; ModuleID = 'paradoxCC'
+source_filename = "paradoxCC"
+
+define double @max(double %a, double %b) {
+entry:
+  %cmptmp = fcmp ogt double %a, %b
+  br i1 %cmptmp, label %then, label %else
+
+then:                                             ; preds = %entry
+  br label %merge
+
+else:                                             ; preds = %entry
+  br label %merge
+
+merge:                                            ; preds = %else, %then
+  ret double 0.000000e+00
+}
+
+define double @paradox() {
+entry:
+  %calltmp = call double @max(double 1.000000e+01, double 2.000000e+01)
+  ret double %calltmp
+}
+
+define double @countdown(double %n) {
+entry:
+  br label %cond
+
+cond:                                             ; preds = %body, %entry
+  %cmptmp = fcmp ogt double %n, 0.000000e+00
+  br i1 %cmptmp, label %body, label %after
+
+body:                                             ; preds = %cond
+  %subtmp = fsub double %n, 1.000000e+00
+  br label %cond
+
+after:                                            ; preds = %cond
+  ret double %subtmp
+}
+
+define double @calc(double %a, double %b, double %c) {
+entry:
+  %multmp = fmul double %a, %b
+  %addtmp = fadd double %multmp, %c
+  %subtmp = fsub double %addtmp, 1.000000e+00
+  ret double %subtmp
+}
+
+define double @collatz(double %n) {
+entry:
+  br label %cond
+
+cond:                                             ; preds = %merge, %entry
+  %cmptmp = fcmp ogt double %n, 1.000000e+00
+  br i1 %cmptmp, label %body, label %after
+
+body:                                             ; preds = %cond
+  %cmptmp1 = fcmp ogt double %n, 2.000000e+00
+  br i1 %cmptmp1, label %then, label %else
+
+then:                                             ; preds = %body
+  %subtmp = fsub double %n, 1.000000e+00
+  br label %merge
+
+else:                                             ; preds = %body
+  %multmp = fmul double %subtmp, 3.000000e+00
+  br label %merge
+
+merge:                                            ; preds = %else, %then
+  br label %cond
+
+after:                                            ; preds = %cond
+  ret double %multmp
+}

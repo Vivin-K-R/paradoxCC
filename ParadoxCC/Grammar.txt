@@ -1,0 +1,18 @@
+program         := top-level*
+top-level       := function-definition | extern | expression-statement
+function-definition := 'def' identifier '(' params ')' '{' statement* '}'
+extern          := 'extern' identifier '(' params ')'
+params          := identifier (',' identifier)*
+statement       := expression-statement
+                 | if-statement
+                 | cycle-statement
+                 | assignment-statement
+expression-statement := expression ';'
+assignment-statement := identifier '=' expression ';'
+if-statement    := 'if' '(' expression ')' '{' statement* '}' ['else' '{' statement* '}']
+cycle-statement := 'cycle' '(' expression ')' '{' statement* '}'   // like while(expr)
+expression      := binary-expression | call-expression | number | variable | '(' expression ')'
+call-expression := identifier '(' arguments ')'
+arguments       := expression (',' expression)*
+binary-expression := expression operator expression
+operator        := '+' | '-' | '*' | '/' | '>' | '<' | '>=' | '<='

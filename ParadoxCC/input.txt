@@ -1,0 +1,36 @@
+def max(a, b) {
+    if (a > b) {
+        a;
+    } else {
+        b;
+    }
+}
+def paradox(){
+    max(10, 20);
+}
+
+#this is a comment
+
+def countdown(n) {
+    cycle (n > 0) {
+        n = n - 1;
+    }
+    n;
+}
+
+#extern print(x);
+
+def calc(a, b, c) {
+    a * b + c - 1;
+}
+
+def collatz(n) {
+    cycle (n > 1) {
+        if (n > 2) {
+            n = n - 1;
+        } else {
+            n = n * 3;
+        }
+    }
+    n;
+}
